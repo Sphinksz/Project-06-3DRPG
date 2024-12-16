@@ -68,7 +68,7 @@ namespace Objects.Player.Scripts.Movement
 
         private bool AboveGround()
         {
-            return _playerMovement.grounded;
+            return !_playerMovement.grounded;
         }
 
         private void StateMachine()
@@ -137,6 +137,12 @@ namespace Objects.Player.Scripts.Movement
                 _rb.AddForce(-wallNormal* 100, ForceMode.Force);
             if (useGravity)
                 _rb.AddForce(transform.up * gravityCounterForce, ForceMode.Force);
+            if (_playerMovement.inFirstPersonCamera)
+            {
+                cam.DoFov(90.0f);
+                if (_wallLeft) cam.DoTilt(-5.0f);
+                if (_wallRight) cam.DoTilt(5.0f);
+            }
         }
 
         private void StopWallRunning()

@@ -38,7 +38,7 @@ namespace Objects.Player.Scripts.Movement
         public float jumpCooldown;
         public float airMultiplier;
         private bool _readyToJump;
-
+        
         [Header("Crouching")] 
         public float crouchSpeed;
         public float crouchYScale;
@@ -47,6 +47,7 @@ namespace Objects.Player.Scripts.Movement
         [Header("GroundCheck")] 
         public float playerHeight;
         public LayerMask groundLayer;
+        public LayerMask wallLayer;
         public bool grounded;
         
         [Header("Slope Handling")]
@@ -72,6 +73,16 @@ namespace Objects.Player.Scripts.Movement
         public CameraType currentCamera;
         public bool inThirdPersonCamera;
         public bool inFirstPersonCamera;
+        
+        [Header("Animation")]
+        private bool _hasAnimator;
+        private Animator _animator;
+        private int _animIDSpeed;
+        private int _animIDGrounded;
+        private int _animIDJump;
+        private int _animIDFreeFall;
+        private int _animIDMotionSpeed;
+        private int _wallIDRun;
         
         public MovementState state;
 
@@ -109,6 +120,11 @@ namespace Objects.Player.Scripts.Movement
         
         private void Start()
         {
+            _hasAnimator = GetComponentInChildren<Animator>(true);
+            if (_hasAnimator)
+            {
+                _animator = GetComponentInChildren<Animator>(true);
+            }
             _rb = GetComponent<Rigidbody>();
             _firstPersonCamComponent = firstPersonCamera.gameObject.GetComponent<PlayerCamFp>();
             _thirdPersonCamComponent = thirdPersonCamera.gameObject.GetComponent<PlayerCamTp>();
@@ -116,12 +132,12 @@ namespace Objects.Player.Scripts.Movement
             _readyToJump = true;
             _startYScale = transform.localScale.y;
             SetCameraToFirstPerson();
+            AssignAnimationIDs();
         }
 
         private void Update()
         {
-            grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight *0.5f + 0.2f, groundLayer);
-            
+            CheckGrounded();
             PlayerInput();
             SpeedControl();
             StateHandler();
@@ -129,6 +145,11 @@ namespace Objects.Player.Scripts.Movement
             currentMovementState.text = state.ToString();
             currentCamMode.text = currentCamera.ToString();
 
+        }
+
+        private void CheckGrounded()
+        {
+            grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight *0.5f + 0.2f, groundLayer) || Physics.Raycast(transform.position, Vector3.down, playerHeight *0.5f + 0.2f, wallLayer);
         }
 
         private void FixedUpdate()
@@ -236,10 +257,28 @@ namespace Objects.Player.Scripts.Movement
             }
             
             else if (grounded)
+            {
                 _rb.AddForce(_moveDirection.normalized * (_moveSpeed * 10.0f), ForceMode.Force);
-            
+                
+
+                if (_hasAnimator && inThirdPersonCamera)
+                {
+                    _animator.SetBool(_animIDGrounded, true);
+                    _animator.SetFloat(_animIDSpeed, new Vector3(_rb.velocity.x, 0f, _rb.velocity.z).magnitude);
+                    _animator.SetFloat(_animIDMotionSpeed, _rb.velocity.magnitude);
+                    _animator.SetBool(_animIDJump, false);
+                    
+                }
+            }
+
             else if (!grounded)
+            {
                 _rb.AddForce(_moveDirection.normalized * (_moveSpeed * 10.0f * airMultiplier), ForceMode.Force);
+                if (_hasAnimator)
+                {
+                    _animator.SetBool(_animIDGrounded, false);
+                }
+            }
 
             if (!wallrunning) _rb.useGravity = !OnSlope();
         }
@@ -284,6 +323,17 @@ namespace Objects.Player.Scripts.Movement
             _exitingSlope = true;
             _rb.velocity= new Vector3(_rb.velocity.x, 0f, _rb.velocity.z);
             _rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
+            if (_hasAnimator && inThirdPersonCamera)
+            {
+                _animator.SetBool(_animIDGrounded, false);
+                _animator.SetBool(_animIDJump, true);
+                if (_animator.GetBool(_wallIDRun))
+                {
+                    _animator.SetBool(_wallIDRun, false);
+                    _rb.AddForce(-transform.up * jumpForce, ForceMode.Impulse);
+                }
+                
+            }
         }
 
         private void ResetJump()
@@ -322,6 +372,8 @@ namespace Objects.Player.Scripts.Movement
             else if (wallrunning)
             {
                 state = MovementState.Wallrunning;
+                _animator.SetBool(_wallIDRun, true);
+                _animator.SetBool(_animIDGrounded, false);
                 _desiredMoveSpeed = wallRunSpeed;
             }
             else if (sliding)
@@ -360,6 +412,7 @@ namespace Objects.Player.Scripts.Movement
             else
             {
                 state = MovementState.Air;
+                _animator.SetBool(_wallIDRun, false);
             }
 
             if (Mathf.Abs(_desiredMoveSpeed - _lastDesiredMoveSpeed) > 4.0f)
@@ -398,6 +451,16 @@ namespace Objects.Player.Scripts.Movement
                 yield return null;
             }
             _moveSpeed = _desiredMoveSpeed;
+        }
+        
+        private void AssignAnimationIDs()
+        {
+            _animIDSpeed = Animator.StringToHash("Speed");
+            _animIDGrounded = Animator.StringToHash("Grounded");
+            _animIDJump = Animator.StringToHash("Jump");
+            _animIDFreeFall = Animator.StringToHash("FreeFall");
+            _animIDMotionSpeed = Animator.StringToHash("MotionSpeed");
+            _wallIDRun = Animator.StringToHash("Wallrun");
         }
         
     }

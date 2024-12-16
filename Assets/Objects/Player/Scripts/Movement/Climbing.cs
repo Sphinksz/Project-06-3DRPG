@@ -77,7 +77,7 @@ namespace Objects.Player.Scripts.Movement
             //Debug.Log("Wall Check: " + _frontWallHit.collider.gameObject.name);
             _wallFront = RotaryHeart.Lib.PhysicsExtension.Physics.SphereCast(transform.position, sphereCastRadius,
                 orientation.forward, out _frontWallHit, detectionLength, wallLayerMask,
-                PreviewCondition.Editor, 2.0f, Color.red, Color.green);
+                PreviewCondition.None, 2.0f, Color.red, Color.green);
             _wallLookAngle = Vector3.Angle(orientation.forward, -_frontWallHit.normal);
             var newWall = _frontWallHit.transform != _lastWall || Mathf.Abs(Vector3.Angle(_lastWallNormal, _frontWallHit.normal)) > minWallNormalAngleChange;
             
